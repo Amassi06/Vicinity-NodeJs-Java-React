@@ -1,0 +1,19 @@
+openapi: 3.0.3
+info:
+  title: Vicinity API
+  version: 0.0.0
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+  /readyz:
+    get:
+      summary: Readiness check
+      responses:
+        "200":
+          description: Ready
+        "503":
+          description: Degraded

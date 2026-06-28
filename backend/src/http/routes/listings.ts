@@ -10,6 +10,7 @@ import {
   cancelListing,
   completeContract,
   createListing,
+  deleteListing,
   getListing,
   listListings,
 } from '../../listings/service.js';
@@ -112,6 +113,26 @@ listingsRouter.post('/contracts/:id/complete', requireAuth, async (req, res) => 
       return;
     }
     res.json(updated);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'unknown_error';
+    const status = message === 'forbidden' ? 403 : 409;
+    res.status(status).json({ error: message });
+  }
+});
+
+listingsRouter.delete('/listings/:id', requireAuth, async (req, res) => {
+  const id = parseId(req);
+  if (!id) {
+    res.status(400).json({ error: 'invalid_id' });
+    return;
+  }
+  try {
+    const ok = await deleteListing(id, req.auth!.sub);
+    if (!ok) {
+      res.status(404).json({ error: 'not_found' });
+      return;
+    }
+    res.status(204).end();
   } catch (err) {
     const message = err instanceof Error ? err.message : 'unknown_error';
     const status = message === 'forbidden' ? 403 : 409;

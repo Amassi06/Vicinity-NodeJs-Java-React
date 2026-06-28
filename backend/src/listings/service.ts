@@ -26,7 +26,11 @@ export async function createListing(
 }
 
 export async function listListings(query: ListingListQuery): Promise<ListingEntity[]> {
-  return ListingModel.find(query).sort({ createdAt: -1 }).limit(50).exec();
+  const filter: Record<string, unknown> = { ...query };
+  if (!filter.status) {
+    filter.status = { $in: ['open', 'in_progress'] };
+  }
+  return ListingModel.find(filter).sort({ createdAt: -1 }).limit(50).exec();
 }
 
 export async function getListing(id: string): Promise<ListingEntity | null> {
@@ -43,18 +47,18 @@ export async function cancelListing(id: string, userId: string): Promise<Listing
   return listing;
 }
 
-/**
- * Accepte une annonce :
- *  - offer  : l'acceptor PAIE l'author (acceptor = payer, author = payee)
- *  - request: l'acceptor PRESTATAIRE est payé par l'author (author = payer, acceptor = payee)
- *
- * Effets :
- *  - création d'un Contract (statut "pending", unique par listing grâce à l'index unique)
- *  - listing.status -> "in_progress", contractId attaché
- *  - si pricePoints > 0 : transfert atomique des points (PointTransaction loggé)
- *
- * Réversion en cas d'échec de transfert : le contrat est supprimé et le listing rouvert.
- */
+export async function deleteListing(id: string, userId: string): Promise<boolean> {
+  const listing = await ListingModel.findById(id);
+  if (!listing) return false;                                  // -> 404
+  if (listing.authorId !== userId) throw new Error('forbidden'); // -> 403
+  if (listing.status === 'open' || listing.status === 'in_progress') {
+    throw new Error('invalid_state');                          // -> 409 : on ne supprime pas une annonce active
+  }
+  await ListingModel.deleteOne({ _id: listing._id });
+  return true;
+}
+
+
 export async function acceptListing(
   listingId: string,
   acceptorId: string,
