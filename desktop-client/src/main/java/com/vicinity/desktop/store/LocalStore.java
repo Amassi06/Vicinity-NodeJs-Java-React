@@ -15,6 +15,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import com.vicinity.desktop.api.dto.Incident;
+import java.util.UUID;
 
 public final class LocalStore {
 
@@ -53,6 +55,20 @@ public final class LocalStore {
                       description CLOB,
                       payload_json CLOB NOT NULL,
                       synced_at TIMESTAMP NOT NULL
+                    )
+                    """);
+
+            st.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS incidents_cache (
+                      id VARCHAR(36) PRIMARY KEY,
+                      title VARCHAR(200) NOT NULL,
+                      description CLOB,
+                      severity VARCHAR(30) NOT NULL,
+                      status VARCHAR(30) NOT NULL,
+                      sync_status VARCHAR(30) NOT NULL,
+                      created_at TIMESTAMP NOT NULL,
+                      updated_at TIMESTAMP NOT NULL
                     )
                     """);
         }
@@ -166,6 +182,121 @@ public final class LocalStore {
         }
         return Optional.empty();
     }
+
+    public static Incident createIncident(
+        final String title, final String description, final String severity) {
+        final Instant now = Instant.now();
+        final Incident incident =
+                new Incident(
+                        UUID.randomUUID().toString(),
+                        title,
+                        description,
+                        severity,
+                        "OPEN",
+                        "LOCAL",
+                        now,
+                        now);
+
+        try (Connection conn = connection();
+                PreparedStatement ps =
+                        conn.prepareStatement(
+                                """
+                                INSERT INTO incidents_cache
+                                  (id, title, description, severity, status, sync_status, created_at, updated_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                """)) {
+            ps.setString(1, incident.id());
+            ps.setString(2, incident.title());
+            ps.setString(3, incident.description());
+            ps.setString(4, incident.severity());
+            ps.setString(5, incident.status());
+            ps.setString(6, incident.syncStatus());
+            ps.setTimestamp(7, java.sql.Timestamp.from(incident.createdAt()));
+            ps.setTimestamp(8, java.sql.Timestamp.from(incident.updatedAt()));
+            ps.executeUpdate();
+            return incident;
+        } catch (SQLException e) {
+            throw new IllegalStateException("Impossible de créer l'incident local", e);
+        }
+    }
+
+    public static List<Incident> loadIncidents() {
+        final List<Incident> out = new ArrayList<>();
+        try (Connection conn = connection();
+                PreparedStatement ps =
+                        conn.prepareStatement(
+                                """
+                                SELECT id, title, description, severity, status, sync_status, created_at, updated_at
+                                FROM incidents_cache
+                                ORDER BY created_at DESC
+                                """);
+                ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                out.add(
+                        new Incident(
+                                rs.getString("id"),
+                                rs.getString("title"),
+                                rs.getString("description"),
+                                rs.getString("severity"),
+                                rs.getString("status"),
+                                rs.getString("sync_status"),
+                                rs.getTimestamp("created_at").toInstant(),
+                                rs.getTimestamp("updated_at").toInstant()));
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Impossible de lire les incidents locaux", e);
+        }
+        return out;
+    }
+
+    public static void resolveIncident(final String id) {
+        try (Connection conn = connection();
+                PreparedStatement ps =
+                        conn.prepareStatement(
+                                """
+                                UPDATE incidents_cache
+                                SET status = 'RESOLVED',
+                                    sync_status = CASE
+                                      WHEN sync_status = 'SYNCED' THEN 'LOCAL'
+                                      ELSE sync_status
+                                    END,
+                                    updated_at = CURRENT_TIMESTAMP
+                                WHERE id = ?
+                                """)) {
+            ps.setString(1, id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new IllegalStateException("Impossible de résoudre l'incident local", e);
+        }
+    }
+
+    public static IncidentStats incidentStats() {
+        try (Connection conn = connection();
+                PreparedStatement ps =
+                        conn.prepareStatement(
+                                """
+                                SELECT
+                                  COUNT(*) AS total,
+                                  SUM(CASE WHEN status = 'OPEN' THEN 1 ELSE 0 END) AS open_count,
+                                  SUM(CASE WHEN status = 'RESOLVED' THEN 1 ELSE 0 END) AS resolved_count,
+                                  SUM(CASE WHEN sync_status <> 'SYNCED' THEN 1 ELSE 0 END) AS pending_sync
+                                FROM incidents_cache
+                                """);
+                ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return new IncidentStats(
+                        rs.getInt("total"),
+                        rs.getInt("open_count"),
+                        rs.getInt("resolved_count"),
+                        rs.getInt("pending_sync"));
+            }
+            return new IncidentStats(0, 0, 0, 0);
+        } catch (SQLException e) {
+            throw new IllegalStateException("Impossible de calculer les statistiques incidents", e);
+        }
+    }
+
+    public record IncidentStats(int total, int open, int resolved, int pendingSync) {}
 
     private static Connection connection() throws SQLException {
         if (jdbcUrl == null) {

@@ -17,6 +17,7 @@ import javafx.scene.control.TabPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.concurrent.Task;
+import com.vicinity.desktop.ui.tabs.IncidentsTab;
 
 public final class MainView extends BorderPane {
 
@@ -79,11 +80,12 @@ public final class MainView extends BorderPane {
 
         final Tab home = new Tab("Accueil", homeTab);
         final Tab hoods = new Tab("Quartiers", neighbourhoodsTab);
+        final Tab incidents = new Tab("Incidents", new IncidentsTab());
         final Tab wallet = new Tab("Portefeuille", new WalletTab(api));
         final Tab dsl = new Tab("DSL", new DslTab(api));
         final Tab plugins = new Tab("Plugins", new PluginsTab(api));
 
-        tabs.getTabs().addAll(home, hoods, wallet, dsl, plugins);
+        tabs.getTabs().addAll(home, hoods, incidents, wallet, dsl, plugins);
         setCenter(tabs);
     }
 
