@@ -80,7 +80,7 @@ public final class MainView extends BorderPane {
 
         final Tab home = new Tab("Accueil", homeTab);
         final Tab hoods = new Tab("Quartiers", neighbourhoodsTab);
-        final Tab incidents = new Tab("Incidents", new IncidentsTab());
+        final Tab incidents = new Tab("Incidents", new IncidentsTab(api));
         final Tab wallet = new Tab("Portefeuille", new WalletTab(api));
         final Tab dsl = new Tab("DSL", new DslTab(api));
         final Tab plugins = new Tab("Plugins", new PluginsTab(api));

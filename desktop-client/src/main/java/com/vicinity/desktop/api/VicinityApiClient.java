@@ -19,6 +19,12 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import com.vicinity.desktop.api.dto.Incident;
+import java.io.IOException;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.Map;
+import com.vicinity.desktop.api.dto.Incident;
 
 public final class VicinityApiClient {
 
@@ -114,6 +120,20 @@ public final class VicinityApiClient {
             // déconnexion locale même si le réseau échoue
         }
     }
+
+public void createIncident(final Incident incident) throws Exception {
+    exchange(
+            "POST",
+            "/admin/incidents",
+            Optional.of(
+                    Map.of(
+                            "localId", incident.id(),
+                            "title", incident.title(),
+                            "description", incident.description() == null ? "" : incident.description(),
+                            "severity", incident.severity())),
+            true,
+            Void.class);
+}
 
     private <T> T exchange(
             final String method,

@@ -13,14 +13,17 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import com.vicinity.desktop.api.VicinityApiClient;
 
 public final class IncidentsTab extends VBox {
 
+    private final VicinityApiClient api;
     private final ObservableList<Incident> incidents = FXCollections.observableArrayList();
     private final ListView<Incident> listView = new ListView<>(incidents);
     private final Label statsLabel = new Label();
 
-    public IncidentsTab() {
+    public IncidentsTab(final VicinityApiClient api) {
+        this.api = api;
         getStyleClass().add("panel");
         setSpacing(12);
         setPadding(new Insets(16));
@@ -103,8 +106,37 @@ public final class IncidentsTab extends VBox {
                                 }
                             }
                         });
+        
+        final Button syncBtn = new Button("Synchroniser");
+syncBtn.setOnAction(
+        e -> {
+            try {
+                int synced = 0;
+                int failed = 0;
 
-        final HBox actions = new HBox(8, severityBox, createBtn, resolveBtn, refreshBtn);
+                for (Incident incident : LocalStore.loadPendingIncidents()) {
+                    try {
+                        api.createIncident(incident);
+                        LocalStore.markIncidentSynced(incident.id());
+                        synced++;
+                    } catch (Exception syncError) {
+                        LocalStore.markIncidentSyncFailed(incident.id());
+                        failed++;
+                    }
+                }
+
+                refresh();
+                statsLabel.setText(
+                        "Synchronisation terminée · OK : "
+                                + synced
+                                + " · Échecs : "
+                                + failed);
+            } catch (Exception ex) {
+                statsLabel.setText("Erreur de synchronisation : " + ex.getMessage());
+            }
+        });
+
+final HBox actions = new HBox(8, severityBox, createBtn, resolveBtn, refreshBtn, syncBtn);
 
         getChildren()
                 .addAll(

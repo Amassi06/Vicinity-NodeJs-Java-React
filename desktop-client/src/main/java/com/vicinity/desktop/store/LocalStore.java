@@ -298,6 +298,70 @@ public final class LocalStore {
 
     public record IncidentStats(int total, int open, int resolved, int pendingSync) {}
 
+public static List<Incident> loadPendingIncidents() {
+    final List<Incident> out = new ArrayList<>();
+    try (Connection conn = connection();
+            PreparedStatement ps =
+                    conn.prepareStatement(
+                            """
+                            SELECT id, title, description, severity, status, sync_status, created_at, updated_at
+                            FROM incidents_cache
+                            WHERE sync_status <> 'SYNCED'
+                            ORDER BY created_at ASC
+                            """);
+            ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+            out.add(
+                    new Incident(
+                            rs.getString("id"),
+                            rs.getString("title"),
+                            rs.getString("description"),
+                            rs.getString("severity"),
+                            rs.getString("status"),
+                            rs.getString("sync_status"),
+                            rs.getTimestamp("created_at").toInstant(),
+                            rs.getTimestamp("updated_at").toInstant()));
+        }
+    } catch (SQLException e) {
+        throw new IllegalStateException("Impossible de lire les incidents à synchroniser", e);
+    }
+    return out;
+}
+
+public static void markIncidentSynced(final String id) {
+    try (Connection conn = connection();
+            PreparedStatement ps =
+                    conn.prepareStatement(
+                            """
+                            UPDATE incidents_cache
+                            SET sync_status = 'SYNCED',
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                            """)) {
+        ps.setString(1, id);
+        ps.executeUpdate();
+    } catch (SQLException e) {
+        throw new IllegalStateException("Impossible de marquer l'incident comme synchronisé", e);
+    }
+}
+
+public static void markIncidentSyncFailed(final String id) {
+    try (Connection conn = connection();
+            PreparedStatement ps =
+                    conn.prepareStatement(
+                            """
+                            UPDATE incidents_cache
+                            SET sync_status = 'FAILED',
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                            """)) {
+        ps.setString(1, id);
+        ps.executeUpdate();
+    } catch (SQLException e) {
+        throw new IllegalStateException("Impossible de marquer l'incident comme échoué", e);
+    }
+}
+
     private static Connection connection() throws SQLException {
         if (jdbcUrl == null) {
             throw new IllegalStateException("LocalStore.init() non appelé");

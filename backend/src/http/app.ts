@@ -12,6 +12,7 @@ import { dslRouter } from './routes/dsl.js';
 import { gdprRouter } from './routes/gdpr.js';
 import { pluginsRouter } from './routes/plugins.js';
 import { mountOpenApiDocs } from './openapi.js';
+import { incidentsRouter } from './routes/incidents.js';
 
 export function createApp(): Express {
   const app = express();
@@ -30,5 +31,6 @@ export function createApp(): Express {
   app.use(dslRouter);
   app.use(gdprRouter);
   app.use(pluginsRouter);
+  app.use(incidentsRouter);
   return app;
 }

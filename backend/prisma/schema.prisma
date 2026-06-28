@@ -130,3 +130,33 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  RESOLVED
+}
+
+model Incident {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  description String?
+  severity    IncidentSeverity @default(MEDIUM)
+  status      IncidentStatus   @default(OPEN)
+  source      String           @default("desktop")
+  localId     String?          @map("local_id")
+  reportedBy  String?          @map("reported_by") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([status])
+  @@index([severity])
+  @@index([localId])
+  @@map("incidents")
+}
