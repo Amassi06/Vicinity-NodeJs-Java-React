@@ -27,9 +27,9 @@ export async function createListing(
 
 export async function listListings(query: ListingListQuery): Promise<ListingEntity[]> {
   const filter: Record<string, unknown> = { ...query };
-  if (!filter.status) {
-    filter.status = { $in: ['open', 'in_progress'] };
-  }
+if (!filter.status) {
+  filter.status = 'open';
+}
   return ListingModel.find(filter).sort({ createdAt: -1 }).limit(50).exec();
 }
 
@@ -93,26 +93,10 @@ export async function acceptListing(
   listing.contractId = String(contract._id);
   await listing.save();
 
-  if (listing.pricePoints > 0) {
-    try {
-      await transferPoints({
-        fromUserId: payerId,
-        toUserId: payeeId,
-        amount: listing.pricePoints,
-        reason: 'SERVICE_PAYMENT',
-        listingId: String(listing._id),
-        contractId: String(contract._id),
-      });
-    } catch (err) {
-      await ContractModel.deleteOne({ _id: contract._id });
-      listing.status = 'open';
-      listing.contractId = null;
-      await listing.save();
-      throw err;
-    }
-  }
 
   return { listing, contract };
+
+  
 }
 
 export async function completeContract(
@@ -121,14 +105,41 @@ export async function completeContract(
 ): Promise<ContractEntity | null> {
   const contract = await ContractModel.findById(contractId);
   if (!contract) return null;
-  if (![contract.payerId, contract.payeeId].includes(userId)) throw new Error('forbidden');
-  if (contract.status !== 'pending') throw new Error('invalid_state');
+
+  if (![contract.payerId, contract.payeeId].includes(userId)) {
+    throw new Error('forbidden');
+  }
+
+  if (contract.status !== 'pending') {
+    throw new Error('invalid_state');
+  }
+
+  const listing = await ListingModel.findById(contract.listingId);
+  if (!listing) {
+    throw new Error('listing_not_found');
+  }
+
+  if (listing.status !== 'in_progress') {
+    throw new Error('invalid_listing_state');
+  }
+
+  if (contract.pricePoints > 0) {
+    await transferPoints({
+      fromUserId: contract.payerId,
+      toUserId: contract.payeeId,
+      amount: contract.pricePoints,
+      reason: 'SERVICE_PAYMENT',
+      listingId: String(listing._id),
+      contractId: String(contract._id),
+    });
+  }
+
   contract.status = 'completed';
   contract.completedAt = new Date();
   await contract.save();
-  await ListingModel.updateOne(
-    { _id: contract.listingId },
-    { $set: { status: 'closed' } },
-  );
+
+  listing.status = 'closed';
+  await listing.save();
+
   return contract;
 }
