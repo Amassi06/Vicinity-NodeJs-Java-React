@@ -13,6 +13,7 @@ import {
   deleteListing,
   getListing,
   listListings,
+  listMyContracts,
 } from '../../listings/service.js';
 
 export const listingsRouter: Router = Router();
@@ -100,6 +101,11 @@ listingsRouter.post('/listings/:id/accept', requireAuth, async (req, res) => {
   }
 });
 
+listingsRouter.get('/contracts/my', requireAuth, async (req, res) => {
+  const contracts = await listMyContracts(req.auth!.sub);
+  res.json({ items: contracts });
+});
+
 listingsRouter.post('/contracts/:id/complete', requireAuth, async (req, res) => {
   const id = parseId(req);
   if (!id) {
@@ -113,16 +119,10 @@ listingsRouter.post('/contracts/:id/complete', requireAuth, async (req, res) => 
       return;
     }
     res.json(updated);
-    } catch (err) {
+  } catch (err) {
     const message = err instanceof Error ? err.message : 'unknown_error';
-    const statusByCode: Record<string, number> = {
-      forbidden: 403,
-      invalid_state: 409,
-      listing_not_found: 404,
-      invalid_listing_state: 409,
-      insufficient_funds: 402,
-    };
-    res.status(statusByCode[message] ?? 400).json({ error: message });
+    const status = message === 'forbidden' ? 403 : 409;
+    res.status(status).json({ error: message });
   }
 });
 

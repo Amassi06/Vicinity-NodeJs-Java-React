@@ -143,3 +143,12 @@ export async function completeContract(
 
   return contract;
 }
+
+export async function listMyContracts(userId: string): Promise<ContractEntity[]> {
+  return ContractModel.find({
+    $or: [{ authorId: userId }, { acceptorId: userId }],
+  })
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .exec();
+}

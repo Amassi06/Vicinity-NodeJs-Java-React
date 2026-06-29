@@ -12,9 +12,19 @@ type ListingDoc = {
   status: string;
 };
 
+type ContractDoc = {
+  _id: string;
+  listingId: string;
+  authorId: string;
+  acceptorId: string;
+  pricePoints: number;
+  status: string;
+};
+
 export function ListingsPage(): ReactElement {
   const { selectedId } = useNeighbourhoods();
   const [items, setItems] = useState<ListingDoc[]>([]);
+  const [contracts, setContracts] = useState<ContractDoc[]>([]);
   const [contractId, setContractId] = useState('');
   const [title, setTitle] = useState('');
   const [kind, setKind] = useState<'offer' | 'request'>('offer');
@@ -28,10 +38,13 @@ export function ListingsPage(): ReactElement {
       return;
     }
     try {
-      const res = await apiFetch<{ items: ListingDoc[] }>(
-        `/listings?neighbourhoodId=${selectedId}`,
-      );
-      setItems(res.items);
+      const [listingsRes, contractsRes] = await Promise.all([
+  apiFetch<{ items: ListingDoc[] }>(`/listings?neighbourhoodId=${selectedId}`),
+  apiFetch<{ items: ContractDoc[] }>('/contracts/my'),
+]);
+
+setItems(listingsRes.items);
+setContracts(contractsRes.items);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Erreur');
     }
@@ -83,6 +96,16 @@ export function ListingsPage(): ReactElement {
     setMsg('Contrat finalisé.');
     await load();
   }
+
+  async function completeService(id: string): Promise<void> {
+  try {
+    await apiFetch(`/contracts/${id}/complete`, { method: 'POST' });
+    setMsg('Service terminé.');
+    await load();
+  } catch (e) {
+    setErr(e instanceof Error ? e.message : 'Erreur');
+  }
+}
 
   return (
     <section className="panel">
@@ -136,6 +159,28 @@ export function ListingsPage(): ReactElement {
           </ul>
         </>
       )}
+      <h2>Mes services en cours</h2>
+        {contracts.filter((c) => c.status === 'pending').length === 0 ? (
+          <p className="muted">Aucun service en cours.</p>
+        ) : (
+          <ul className="item-list">
+            {contracts
+              .filter((c) => c.status === 'pending')
+              .map((c) => (
+                <li key={c._id}>
+                  <strong>Contrat {c._id}</strong> — {c.pricePoints} pts
+                  <div className="row-actions">
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={() => void completeService(c._id)}>
+                      Terminer le service
+                    </button>
+                  </div>
+                </li>
+              ))}
+          </ul>
+        )}
     </section>
   );
 }
