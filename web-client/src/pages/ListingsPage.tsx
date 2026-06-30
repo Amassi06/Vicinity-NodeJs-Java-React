@@ -2,6 +2,8 @@ import { FormEvent, useCallback, useEffect, useState, type ReactElement } from '
 import { apiFetch } from '../lib/api.js';
 import { useNeighbourhoods } from '../context/NeighbourhoodContext.js';
 import { NeighbourhoodSelect } from '../components/NeighbourhoodSelect.js';
+import { useAuth } from '../context/AuthContext.js';
+
 
 type ListingDoc = {
   _id: string;
@@ -17,8 +19,13 @@ type ContractDoc = {
   listingId: string;
   authorId: string;
   acceptorId: string;
+  payerId: string;
+  payeeId: string;
   pricePoints: number;
-  status: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  acceptedAt?: string;
+  completedAt?: string | null;
+  createdAt?: string;
 };
 
 type WalletBalance = {
@@ -26,6 +33,7 @@ type WalletBalance = {
 };
 
 export function ListingsPage(): ReactElement {
+  const { user } = useAuth();
   const { selectedId } = useNeighbourhoods();
   const [items, setItems] = useState<ListingDoc[]>([]);
   const [contracts, setContracts] = useState<ContractDoc[]>([]);
@@ -61,6 +69,35 @@ setBalance(walletRes.balance);
     void load();
   }, [load]);
 
+const activeContracts = contracts.filter((contract) => contract.status === 'pending');
+
+const completedContracts = contracts.filter((contract) => contract.status === 'completed');
+
+function formatDate(value?: string | null): string {
+  if (!value) return 'Date inconnue';
+
+  return new Intl.DateTimeFormat('fr-FR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
+function describeContractPoints(contract: ContractDoc): string {
+  if (contract.pricePoints <= 0) {
+    return 'Service gratuit';
+  }
+
+  if (contract.payerId === user?.sub) {
+    return `Vous avez payé ${contract.pricePoints} pts`;
+  }
+
+  if (contract.payeeId === user?.sub) {
+    return `Vous avez reçu ${contract.pricePoints} pts`;
+  }
+
+  return `${contract.pricePoints} pts`;
+}
+
   async function create(ev: FormEvent): Promise<void> {
     ev.preventDefault();
     if (!selectedId) return;
@@ -77,7 +114,7 @@ await apiFetch('/listings', {
   },
 });
 setTitle('');
-setCategory('');
+setCategory('services');
 setPricePoints('0');
       await load();
     } catch (e) {
@@ -252,33 +289,59 @@ async function completeService(id: string): Promise<void> {
 
     <h2>Mes services en cours</h2>
 
-    {contracts.filter((c) => c.status === 'pending').length === 0 ? (
-      <p className="muted">Aucun service en cours.</p>
-    ) : (
-      <ul className="item-list">
-        {contracts
-          .filter((c) => c.status === 'pending')
-          .map((c) => (
-            <li key={c._id}>
-              <strong>Service en cours</strong>
+{activeContracts.length === 0 ? (
+  <p className="muted">Aucun service en cours.</p>
+) : (
+  <ul className="item-list">
+    {activeContracts.map((contract) => (
+      <li key={contract._id}>
+        <strong>Service en cours</strong>
 
-              <p className="muted">
-                Contrat {c._id} — {c.pricePoints > 0 ? `${c.pricePoints} pts` : 'Gratuit'}
-              </p>
+        <p className="muted">
+          Contrat {contract._id.slice(0, 8)} — {describeContractPoints(contract)}
+        </p>
 
-              <div className="row-actions">
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={() => void completeService(c._id)}
-                >
-                  Terminer le service
-                </button>
-              </div>
-            </li>
-          ))}
-      </ul>
-    )}
+        <p className="muted">
+          Accepté le {formatDate(contract.acceptedAt ?? contract.createdAt)}
+        </p>
+
+        <div className="row-actions">
+          <button
+            type="button"
+            className="primary"
+            onClick={() => void completeService(contract._id)}
+          >
+            Terminer le service
+          </button>
+        </div>
+      </li>
+    ))}
+  </ul>
+)}
+
+<h2>Historique des services</h2>
+
+{completedContracts.length === 0 ? (
+  <p className="muted">Aucun service terminé.</p>
+) : (
+  <ul className="item-list">
+    {completedContracts.map((contract) => (
+      <li key={contract._id}>
+        <strong>Service terminé</strong>
+
+        <p className="muted">
+          Contrat {contract._id.slice(0, 8)} — {describeContractPoints(contract)}
+        </p>
+
+        <p className="muted">
+          Terminé le {formatDate(contract.completedAt)}
+        </p>
+
+        <span className="badge">Terminé</span>
+      </li>
+    ))}
+  </ul>
+)}
   </section>
 );
 }

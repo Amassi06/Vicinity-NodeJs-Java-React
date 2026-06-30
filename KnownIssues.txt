@@ -1,0 +1,2 @@
+Lors qu'un utilisateur accepte une demmande, le texte dit que l'utilisateur sera debite, alors qu'il recoit des points
+
