@@ -16,7 +16,7 @@ export async function createListing(
     authorId,
     neighbourhoodId: input.neighbourhoodId,
     title: input.title,
-    description: input.description,
+    description: input.description ?? '',
     kind: input.kind,
     category: input.category,
     pricePoints: input.pricePoints,

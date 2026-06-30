@@ -1,13 +1,22 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireRole } from '../../auth/middleware.js';
-import { creditPoints, getWallet } from '../../wallet/service.js';
+import {
+  creditPoints,
+  getWallet,
+  listWalletTransactions,
+} from '../../wallet/service.js';
 
 export const walletRouter: Router = Router();
 
 walletRouter.get('/me/wallet', requireAuth, async (req, res) => {
   const wallet = await getWallet(req.auth!.sub);
   res.json(wallet);
+});
+
+walletRouter.get('/me/wallet/transactions', requireAuth, async (req, res) => {
+  const transactions = await listWalletTransactions(req.auth!.sub);
+  res.json({ items: transactions });
 });
 
 const AdminCreditSchema = z.object({

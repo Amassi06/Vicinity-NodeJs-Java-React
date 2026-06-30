@@ -48,13 +48,29 @@ export async function apiFetch<T>(
   } catch {
     throw new Error(`Réponse invalide (${res.status})`);
   }
-  if (!res.ok) {
-    const msg =
-      typeof data === 'object' && data !== null && 'error' in data
-        ? String((data as { error: string }).error)
-        : `${res.status} ${res.statusText}`;
+if (!res.ok) {
+  if (
+    typeof data === 'object' &&
+    data !== null &&
+    'issues' in data &&
+    Array.isArray((data as { issues: unknown }).issues)
+  ) {
+    const issues = (data as { issues: Array<{ path?: string[]; message?: string }> }).issues;
+
+    const msg = issues
+      .map((issue) => `${issue.path?.join('.') || 'champ'} : ${issue.message}`)
+      .join(', ');
+
     throw new Error(msg);
   }
+
+  const msg =
+    typeof data === 'object' && data !== null && 'error' in data
+      ? String((data as { error: string }).error)
+      : `${res.status} ${res.statusText}`;
+
+  throw new Error(msg);
+}
   return data as T;
 }
 
@@ -78,12 +94,13 @@ export async function authPostJson<T>(path: string, body: unknown): Promise<T> {
   });
   const text = await res.text();
   const data: unknown = text ? JSON.parse(text) : undefined;
-  if (!res.ok) {
-    const msg =
-      typeof data === 'object' && data !== null && 'error' in data
-        ? String((data as { error: string }).error)
-        : res.statusText;
-    throw new Error(msg);
-  }
+if (!res.ok) {
+  const msg =
+    typeof data === 'object' && data !== null
+      ? JSON.stringify(data)
+      : `${res.status} ${res.statusText}`;
+
+  throw new Error(msg);
+}
   return data as T;
 }

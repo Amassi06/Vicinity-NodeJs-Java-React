@@ -125,3 +125,16 @@ export async function getWallet(userId: string): Promise<WalletSummary> {
     }),
   };
 }
+
+export async function listWalletTransactions(userId: string) {
+  return prisma.pointTransaction.findMany({
+    where: {
+      OR: [
+        { fromUserId: userId },
+        { toUserId: userId },
+      ],
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  });
+}

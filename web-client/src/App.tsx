@@ -11,10 +11,10 @@ import { EventsPage } from './pages/EventsPage.js';
 import { ListingsPage } from './pages/ListingsPage.js';
 import { PollsPage } from './pages/PollsPage.js';
 import { MessagesPage } from './pages/MessagesPage.js';
-import { WalletPage } from './pages/WalletPage.js';
 import { MfaPage } from './pages/MfaPage.js';
 import { DocumentsPage } from './pages/DocumentsPage.js';
 import { PrivacyPage } from './pages/PrivacyPage.js';
+import { WalletPage } from './pages/WalletPage';
 
 export function App(): ReactElement {
   return (
