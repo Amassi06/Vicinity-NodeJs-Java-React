@@ -15,6 +15,7 @@ import { MfaPage } from './pages/MfaPage.js';
 import { DocumentsPage } from './pages/DocumentsPage.js';
 import { PrivacyPage } from './pages/PrivacyPage.js';
 import { WalletPage } from './pages/WalletPage';
+import { IncidentsPage } from './pages/IncidentsPage.js';
 
 export function App(): ReactElement {
   return (
@@ -36,6 +37,7 @@ export function App(): ReactElement {
                 <Route path="/documents" element={<DocumentsPage />} />
                 <Route path="/mfa" element={<MfaPage />} />
                 <Route path="/confidentialite" element={<PrivacyPage />} />
+                <Route path="/incidents" element={<IncidentsPage />} />
               </Route>
             </Route>
           </Route>

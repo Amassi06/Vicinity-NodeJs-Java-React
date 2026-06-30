@@ -4,6 +4,7 @@ import { requireAuth, requireRole } from '../../auth/middleware.js';
 import {
   createIncident,
   listIncidents,
+  listMyIncidents,
   resolveIncident,
 } from '../../incidents/service.js';
 
@@ -18,6 +19,35 @@ const IncidentCreateSchema = z.object({
 
 const UuidParam = z.object({
   id: z.string().uuid(),
+});
+
+incidentsRouter.get('/incidents/my', requireAuth, async (req, res) => {
+  const incidents = await listMyIncidents(req.auth!.sub);
+  res.status(200).json({ items: incidents });
+});
+
+incidentsRouter.post('/incidents', requireAuth, async (req, res) => {
+  const parsed = IncidentCreateSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(400).json({
+      error: 'invalid_input',
+      issues: parsed.error.issues,
+    });
+    return;
+  }
+
+  const incident = await createIncident({
+    title: parsed.data.title,
+    severity: parsed.data.severity,
+    reportedBy: req.auth!.sub,
+    source: 'web',
+    ...(parsed.data.description !== undefined
+      ? { description: parsed.data.description }
+      : {}),
+  });
+
+  res.status(201).json(incident);
 });
 
 incidentsRouter.get(

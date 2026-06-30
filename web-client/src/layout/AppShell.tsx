@@ -40,6 +40,9 @@ export function AppShell(): ReactElement {
           <NavLink to="/confidentialite" className={({ isActive }) => (isActive ? 'router-active' : '')}>
             RGPD
           </NavLink>
+          <NavLink to="/incidents" className={({ isActive }) => (isActive ? 'router-active' : '')}>
+            Incidents
+          </NavLink>
 	  <NavLink to="/portefeuille">Points</NavLink>
           {!user ? (
             <>

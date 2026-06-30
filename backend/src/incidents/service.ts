@@ -6,6 +6,7 @@ export type CreateIncidentInput = {
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   localId?: string;
   reportedBy?: string;
+  source?: string;
 };
 
 export async function listIncidents() {
@@ -22,6 +23,18 @@ export async function createIncident(input: CreateIncidentInput) {
       description: input.description ?? null,
       localId: input.localId ?? null,
       reportedBy: input.reportedBy ?? null,
+      source: input.source ?? 'desktop',
+    },
+  });
+}
+
+export async function listMyIncidents(userId: string) {
+  return prisma.incident.findMany({
+    where: {
+      reportedBy: userId,
+    },
+    orderBy: {
+      createdAt: 'desc',
     },
   });
 }
